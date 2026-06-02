@@ -85,37 +85,44 @@ include_directories(
 
 
 add_executable(path2waypoint src/path2waypoint.cpp)
+add_dependencies(path2waypoint ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 target_link_libraries(path2waypoint
   ${catkin_LIBRARIES} ${PCL_LIBRARIES}
 )
 
 add_executable(body2map_pointcloud src/body2map_pointcloud.cpp)
+add_dependencies(body2map_pointcloud ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 target_link_libraries(body2map_pointcloud
   ${catkin_LIBRARIES} ${PCL_LIBRARIES}
 )
 
 add_executable(body2any_pointcloud src/body2any_pointcloud.cpp)
+add_dependencies(body2any_pointcloud ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 target_link_libraries(body2any_pointcloud
   ${catkin_LIBRARIES} ${PCL_LIBRARIES}
 )
 
 add_executable(livox2velodyne src/livox2velodyne.cpp )
+add_dependencies(livox2velodyne ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(livox2velodyne ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${PYTHON_LIBRARIES})
 target_include_directories(livox2velodyne PRIVATE ${PYTHON_INCLUDE_DIRS})
 
 add_executable(downsample_pointcloud src/downsample_pointcloud.cpp)
+add_dependencies(downsample_pointcloud ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 target_link_libraries(downsample_pointcloud
   ${catkin_LIBRARIES} ${PCL_LIBRARIES}
 )
 
 add_executable(local2map_odom src/local2map_odom.cpp)
+add_dependencies(local2map_odom ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(local2map_odom ${catkin_LIBRARIES})
 
 add_executable(robot_around_pointcloud src/robot_around_pointcloud.cpp)
+add_dependencies(robot_around_pointcloud ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(robot_around_pointcloud
   ${catkin_LIBRARIES} ${PCL_LIBRARIES}
 )

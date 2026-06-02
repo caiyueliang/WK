@@ -1,10 +1,13 @@
 # judge which cmake codes to use 
+cmake_minimum_required(VERSION 3.5)
+
+if(NOT DEFINED ROS_EDITION)
+  set(ROS_EDITION "ROS1")
+endif()
+
 if(ROS_EDITION STREQUAL "ROS1")
 
   # Copyright(c) 2019 livoxtech limited.
-
-  cmake_minimum_required(VERSION 3.0)
-
 
   #---------------------------------------------------------------------------------------
   # Start livox_ros_driver2 project
@@ -187,9 +190,6 @@ if(ROS_EDITION STREQUAL "ROS1")
 else(ROS_EDITION STREQUAL "ROS2")
 
   # Copyright(c) 2020 livoxtech limited.
-
-  cmake_minimum_required(VERSION 3.14)
-  project(livox_ros_driver2)
 
   # Default to C99
   if(NOT CMAKE_C_STANDARD)

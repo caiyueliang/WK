@@ -1,0 +1,74 @@
+# 创建地图
+
+docker exec -it wk_noetic /bin/bash
+
+# 首次进入容器时补齐 mapping.launch 依赖
+apt-get update && apt-get install -y ros-noetic-octomap-server
+
+ping 192.168.123.164    # 机器人本体
+ping 192.168.123.120    # 机器人雷达
+ping 192.168.123.161    # 机器人摄像头
+
+cd G1Nav2D
+
+export DISPLAY=:0 && \
+export QT_X11_NO_MITSHM=1 && \
+export ROS_MASTER_URI=http://192.168.123.2:11311 && \
+export ROS_IP=192.168.123.2 && \
+unset ROS_HOSTNAME && \
+source /opt/ros/noetic/setup.bash
+
+
+source devel/setup.bash
+
+roslaunch fastlio mapping.launch
+
+
+# 保存地图
+cd /workspace/WK/G1Nav2D/
+
+source devel/setup.bash
+
+rosrun map_server map_saver map:=/projected_map -f /workspace/WK/maps/map_$(date +%Y%m%d_%H%M%S)
+
+# 输出如下：
+(leju) root@wair-B660M-D2H-DDR4:/workspace/WK/G1Nav2D# rosrun map_server map_saver map:=/projected_map -f /workspace/WK/maps/
+[INFO] [1780302783.326676470]: Waiting for the map
+[INFO] [1780302783.590988236]: Received a 208 X 228 map @ 0.050 m/pix
+[INFO] [1780302783.591006289]: Writing map occupancy data to /workspace/WK/maps/.pgm
+[INFO] [1780302783.591674117]: Writing map occupancy data to /workspace/WK/maps/.yaml
+[INFO] [1780302783.591699929]: Done
+
+
+
+# 2.启动导航：
+cd /workspace/WK/G1Nav2D/
+
+source devel/setup.bash
+
+roslaunch fastlio navigation.launch
+
+# 3.初始重定位（如有需要）：
+rosservice call /slam_reloc "{pcd_path: '/home/water/WK/G1Nav2D/src/fastlio2/PCD/map.pcd', x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}"
+
+# 在 RViz 中确认点云与地图是否配准良好。
+
+
+
+# 运动控制（G1）
+
+cd /workspace/WK/unitree_sdk2_python/example/g1/high_level
+
+python3 g1_action.py enx6c1ff7bccc28
+
+
+
+# 报错信息如下：
+bind failed
+[2026-06-02 03:08:28.445] [console] [error] Create detection socket failed.  [device_manager.cpp] [CreateDetectionChannel] [275]
+[2026-06-02 03:08:28.445] [console] [error] Create detection channel failed.  [device_manager.cpp] [CreateChannel] [242]
+[2026-06-02 03:08:28.445] [console] [error] Create channel failed.  [device_manager.cpp] [Init] [169]
+Failed to init livox lidar sdk.
+[ERROR] [1780369708.445674398]: Init lds lidar failed!
+
+ 

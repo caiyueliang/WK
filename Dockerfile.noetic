@@ -1,0 +1,24 @@
+FROM tck-xinan-registry.cn-chengdu.cr.aliyuncs.com/wair/ubt2004_ros_noetic:leju_03301534
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH=/usr/bin:/bin:$PATH
+
+RUN printf '%s\n' 'deb https://mirrors.tuna.tsinghua.edu.cn/ros/ubuntu focal main' > /etc/apt/sources.list.d/ros-latest.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    ca-certificates \
+    libapr1-dev \
+    pkg-config \
+    python3-empy \
+    python3-rosdep \
+    ros-noetic-global-planner \
+    ros-noetic-map-server \
+    ros-noetic-teb-local-planner \
+    ros-noetic-tf2-sensor-msgs \
+  && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["bash"]
+CMD ["-lc", "sleep infinity"]

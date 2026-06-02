@@ -1,11 +1,11 @@
-comtypes==1.4.6
+comtypes==1.4.6; platform_system == "Windows"
 cryptography==44.0.1
 openai==1.86.0
 opuslib==3.0.1
 paho-mqtt==2.1.0
 psutil==7.0.0
 sounddevice>=0.4.4
-pycaw==20240210
+pycaw==20240210; platform_system == "Windows"
 pynput==1.8.1
 pyperclip==1.9.0
 pypinyin==0.53.0
