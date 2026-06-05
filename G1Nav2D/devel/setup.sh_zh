@@ -1,0 +1,96 @@
+#!/usr/bin/env sh
+# 由 catkin/cmake/template/setup.sh.in 生成
+
+# 设置各类环境变量，并 source 额外的环境钩子脚本。
+# 在执行前会尽量撤销上一次 source 其他 setup 文件带来的环境改动。
+# 支持的命令行选项：
+# --extend：跳过“撤销旧环境改动”的步骤，在现有环境上继续叠加
+# --local：只处理当前工作空间，不处理链式依赖的其他工作空间
+# 在纯 sh 环境中，source 脚本时通常无法直接传参，
+# 这时可以改用环境变量 `CATKIN_SETUP_UTIL_ARGS=--extend/--local`
+
+# 由于该文件会被 source 执行，因此优先使用外部传入的 _CATKIN_SETUP_DIR，
+# 若未提供，则回退到配置阶段写入的默认路径
+: ${_CATKIN_SETUP_DIR:=/workspace/WK/G1Nav2D/devel}
+_SETUP_UTIL="$_CATKIN_SETUP_DIR/_setup_util.py"
+unset _CATKIN_SETUP_DIR
+
+if [ ! -f "$_SETUP_UTIL" ]; then
+  echo "Missing Python script: $_SETUP_UTIL"
+  return 22
+fi
+
+# 检测当前是否运行在 Darwin（macOS）平台
+_UNAME=`uname -s`
+_IS_DARWIN=0
+if [ "$_UNAME" = "Darwin" ]; then
+  _IS_DARWIN=1
+fi
+unset _UNAME
+
+# 确保下面涉及的环境变量都会被导出
+export CMAKE_PREFIX_PATH
+if [ $_IS_DARWIN -eq 0 ]; then
+  export LD_LIBRARY_PATH
+else
+  export DYLD_LIBRARY_PATH
+fi
+unset _IS_DARWIN
+export PATH
+export PKG_CONFIG_PATH
+export PYTHONPATH
+
+# 如果尚未设置，则记录当前 shell 类型
+if [ -z "$CATKIN_SHELL" ]; then
+  CATKIN_SHELL=sh
+fi
+
+# 调用 Python 脚本生成所需的环境变量导出语句
+# 若存在 TMPDIR 则优先使用，否则回退到 /tmp
+if [ -d "${TMPDIR:-}" ]; then
+  _TMPDIR="${TMPDIR}"
+else
+  _TMPDIR=/tmp
+fi
+_SETUP_TMP=`mktemp "${_TMPDIR}/setup.sh.XXXXXXXXXX"`
+unset _TMPDIR
+if [ $? -ne 0 -o ! -f "$_SETUP_TMP" ]; then
+  echo "Could not create temporary file: $_SETUP_TMP"
+  return 1
+fi
+CATKIN_SHELL=$CATKIN_SHELL "$_SETUP_UTIL" $@ ${CATKIN_SETUP_UTIL_ARGS:-} >> "$_SETUP_TMP"
+_RC=$?
+if [ $_RC -ne 0 ]; then
+  if [ $_RC -eq 2 ]; then
+    echo "Could not write the output of '$_SETUP_UTIL' to temporary file '$_SETUP_TMP': maybe the disk is full?"
+  else
+    echo "Failed to run '\"$_SETUP_UTIL\" $@': return code $_RC"
+  fi
+  unset _RC
+  unset _SETUP_UTIL
+  rm -f "$_SETUP_TMP"
+  unset _SETUP_TMP
+  return 1
+fi
+unset _RC
+unset _SETUP_UTIL
+. "$_SETUP_TMP"
+rm -f "$_SETUP_TMP"
+unset _SETUP_TMP
+
+# 依次 source 所有环境钩子脚本
+_i=0
+while [ $_i -lt $_CATKIN_ENVIRONMENT_HOOKS_COUNT ]; do
+  eval _envfile=\$_CATKIN_ENVIRONMENT_HOOKS_$_i
+  unset _CATKIN_ENVIRONMENT_HOOKS_$_i
+  eval _envfile_workspace=\$_CATKIN_ENVIRONMENT_HOOKS_${_i}_WORKSPACE
+  unset _CATKIN_ENVIRONMENT_HOOKS_${_i}_WORKSPACE
+  # 为当前环境钩子设置所属工作空间
+  CATKIN_ENV_HOOK_WORKSPACE=$_envfile_workspace
+  . "$_envfile"
+  unset CATKIN_ENV_HOOK_WORKSPACE
+  _i=$((_i + 1))
+done
+unset _i
+
+unset _CATKIN_ENVIRONMENT_HOOKS_COUNT

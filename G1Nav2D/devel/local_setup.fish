@@ -5,7 +5,7 @@
 # or fall back to the destination set at configure time
 
 if test -z $_CATKIN_SETUP_DIR
-    set _CATKIN_SETUP_DIR /home/water/WK/G1Nav2D/devel
+    set _CATKIN_SETUP_DIR /workspace/WK/G1Nav2D/devel
 end
 
 set CATKIN_SETUP_UTIL_ARGS "--extend --local"
