@@ -121,16 +121,38 @@ class RobotController:
 
 
 def set_fast_params():
-    rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_x', 0.8)
-    rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_theta', 0.8)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_x', 0.8)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_theta', 0.8)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/acc_lim_x', 0.8)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/acc_lim_theta', 0.7)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/path_distance_bias', 60.0)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/goal_distance_bias', 20.0)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/xy_goal_tolerance', 0.3)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/yaw_goal_tolerance', 0.3)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/min_turning_radius', 0.0)
+    #rospy.set_param('/move_base/TebLocalPlannerROS/weight_optimaltime', 1.0)
+    
+        # TEB
+    rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_x', 0.85)
+    rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_theta', 0.55)
     rospy.set_param('/move_base/TebLocalPlannerROS/acc_lim_x', 0.8)
-    rospy.set_param('/move_base/TebLocalPlannerROS/acc_lim_theta', 0.7)
-    rospy.set_param('/move_base/TebLocalPlannerROS/path_distance_bias', 60.0)
-    rospy.set_param('/move_base/TebLocalPlannerROS/goal_distance_bias', 20.0)
-    rospy.set_param('/move_base/TebLocalPlannerROS/xy_goal_tolerance', 0.3)
-    rospy.set_param('/move_base/TebLocalPlannerROS/yaw_goal_tolerance', 0.3)
-    rospy.set_param('/move_base/TebLocalPlannerROS/min_turning_radius', 0.0)
-    rospy.set_param('/move_base/TebLocalPlannerROS/weight_optimaltime', 1.0)
+    rospy.set_param('/move_base/TebLocalPlannerROS/acc_lim_theta', 0.6)
+    rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_x_backwards', 0.0)
+    rospy.set_param('/move_base/TebLocalPlannerROS/xy_goal_tolerance', 0.55)
+    rospy.set_param('/move_base/TebLocalPlannerROS/yaw_goal_tolerance', 1.2)
+    rospy.set_param('/move_base/TebLocalPlannerROS/free_goal_vel', True)
+    rospy.set_param('/move_base/TebLocalPlannerROS/weight_optimaltime', 0.8)
+
+    # DWA，防止你实际用的是 DWA
+    rospy.set_param('/move_base/DWAPlannerROS/max_vel_x', 0.85)
+    rospy.set_param('/move_base/DWAPlannerROS/min_vel_x', 0.35)
+    rospy.set_param('/move_base/DWAPlannerROS/max_vel_theta', 0.55)
+    rospy.set_param('/move_base/DWAPlannerROS/min_vel_theta', 0.25)
+    rospy.set_param('/move_base/DWAPlannerROS/min_trans_vel', 0.35)
+    rospy.set_param('/move_base/DWAPlannerROS/acc_lim_x', 0.8)
+    rospy.set_param('/move_base/DWAPlannerROS/acc_lim_theta', 0.6)
+    rospy.set_param('/move_base/DWAPlannerROS/xy_goal_tolerance', 0.55)
+    rospy.set_param('/move_base/DWAPlannerROS/yaw_goal_tolerance', 1.2)
     rospy.loginfo("🚀 切换到快速巡航模式")
 
 def set_slow_params():
@@ -174,6 +196,10 @@ def navigate_to_waypoints(waypoints, robot_controller):
     rospy.set_param('/move_base/DWAPlannerROS/goal_distance_bias', 15.0)
     rospy.set_param('/move_base/planner_patience', 18.0)
     rospy.set_param('/move_base/planner_frequency', 1.0)
+    rospy.set_param('/move_base/controller_patience', 8.0)
+    rospy.set_param('/move_base/planner_patience', 20.0)
+    rospy.set_param('/move_base/controller_frequency', 10.0)
+    rospy.set_param('/move_base/planner_frequency', 1.0)
 
     listener = tf.TransformListener()
     base_frame = "/base_link" 
@@ -202,9 +228,9 @@ def navigate_to_waypoints(waypoints, robot_controller):
         
         # 【修改2】停止距离设置
         if start_dist < 1.0:
-            STOP_DISTANCE = 0.4
+            STOP_DISTANCE = 0.5
         else:
-            STOP_DISTANCE = 0.7
+            STOP_DISTANCE = 0.8
             
         # 【修改3】提前切换到慢速的距离 (从 1.0 改为 1.5)
         SLOWDOWN_DISTANCE = 1.5
@@ -353,10 +379,9 @@ if __name__ == '__main__':
         robot_controller.speak("启动成功")
 
         waypoints = [
-            {"x": 5.33, "y": -1.30, "yaw": 1.09 ,"action_id": 31,"say_text": "3333"},
-            {"x": -0.15, "y":-1.62, "yaw": -0.83, "action_id":31,"say_text": "7777"},
-            {"x": 5.13, "y": 7.04, "yaw": 2.77, "action_id": 31, "say_text": "8888"},
-            {"x": -1.78, "y": 6.37, "yaw": -2.98, "action_id": 31, "say_text": "2222"},
+            {"x": -2.87, "y": 2.15, "yaw": 0.00431 ,"action_id":27 ,"say_text": "各位来宾，大家好！欢迎来到武汉人工智能研究院科技展厅。"},
+            {"x": 3.1, "y": 1.1, "yaw": -0.83, "action_id":23,"say_text": "接下来，将为大家介绍我们最核心的成果——“紫东太初”多模态大模型。"}, 
+            {"x": 0, "y": 0, "yaw": -0.83, "action_id":25,"say_text": "以上是展厅的全部介绍，谢谢大家！"}, 
         ]
 
         navigate_to_waypoints(waypoints, robot_controller)

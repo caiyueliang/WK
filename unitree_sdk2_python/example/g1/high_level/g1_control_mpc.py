@@ -38,17 +38,17 @@ class MPCController:
         self.dt = 1.0 / self.control_freq
         
         # --- MPC 物理约束 ---
-        self.max_vx = 1.5
-        self.max_vy = 0.6
-        self.max_wz = 1.5
+        self.max_vx = 1.0
+        self.max_vy = 0.0
+        self.max_wz = 0.45
         
         # 加速度设置较大，解决起步慢的问题
-        self.max_acc_v = 5.0   
-        self.max_acc_w = 5.0   
+        self.max_acc_v = 45.0   
+        self.max_acc_w = 8.0   
 
         # --- MPC 权重参数 ---
-        self.Q_v = 10.0
-        self.R_v = 2.0
+        self.Q_v = 70.0
+        self.R_v = 0.15
         
         # --- 状态变量 ---
         self.target_vx = 0.0
@@ -66,7 +66,7 @@ class MPCController:
 
         # --- 【移植自 V4】到位锁定机制参数 ---
         self.is_stopped = False
-        self.stop_velocity_threshold = 0.03  # 判定停止的速度阈值
+        self.stop_velocity_threshold = 0.01  # 判定停止的速度阈值
         
         # 订阅
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback)
@@ -98,9 +98,28 @@ class MPCController:
                 self.is_stopped = False
                 rospy.loginfo("🔓 解锁：开始新运动")
 
-        self.target_vx = msg.linear.x
-        self.target_vy = msg.linear.y
-        self.target_wz = msg.angular.z
+        vx = msg.linear.x
+        vy = 0.0
+        wz = msg.angular.z
+
+        # 前进时禁止横向速度，G1 更容易走直
+        if abs(vx) > 0.1:
+            vy = 0.0
+
+        # 前进时忽略小角速度，防止局部规划器一点点修正导致走弧线
+        if abs(vx) > 0.15 and abs(wz) < 0.18:
+            wz = 0.0
+
+        # 前进时限制最大转向，不要边走边大幅转弯
+        if abs(vx) > 0.15:
+            wz = max(-0.35, min(0.35, wz))
+
+        self.target_vx = vx
+        self.target_vy = vy
+        self.target_wz = wz
+        #self.target_vx = msg.linear.x
+        #self.target_vy = msg.linear.y
+        #self.target_wz = msg.angular.z
 
     def solve_mpc_step(self, v_current, v_target, v_last_cmd, max_v, max_acc):
         v_current = np.clip(v_current, -max_v, max_v)

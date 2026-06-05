@@ -1,15 +1,69 @@
+# 有线连接外网
+DNS要改成：202。103.24.68
+
+
+# 重新编译fastlio2
+catkin_make -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DROS_EDITION=ROS1 -DPYTHON_EXECUTABLE=/usr/bin/python3 --pkg livox_ros_driver2
+
+
+# 这一步可能会有很多头文件或者依赖缺失的问题，如缺少GTSAM，根据终端报错去安装对应的文件即可
+
+# 编译ok后用下面这个命令看是否有CustomMsg.h头文件，有就ok
+ls devel/include/livox_ros_driver2
+
+# 随时可以用下面命令刷新环境，或者写到.bashrc里面，双ROS2环境记得切换或注释
+source /opt/ros/noetic/setup.bash
+
+catkin_make -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DROS_EDITION=ROS1 -DPYTHON_EXECUTABLE=/usr/bin/python3 --pkg fastlio -j"$(nproc)"
+
+# 整体编译
+catkin_make
+
+# 如果不行，用这个命令
+catkin_make -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DROS_EDITION=ROS1 -DPYTHON_EXECUTABLE=/usr/bin/python3 -j"$(nproc)"
+
+source devel/setup.bash
+
+
+
+
+
+
 # 创建地图
+
+docker run -itd --name wk_noetic \
+    --gpus all \
+    --network=host \
+    --shm-size=32g \
+    -e DISPLAY=$DISPLAY \
+    -e XAUTHORITY=/root/.Xauthority \
+    -e QT_X11_NO_MITSHM=1 \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v /home/wair/.Xauthority:/root/.Xauthority:ro \
+    -v /home/wair/caiyueliang/WK:/workspace/WK \
+    -w /workspace/WK \
+    tck-xinan-registry.cn-chengdu.cr.aliyuncs.com/wair/wk_noetic:1.0.2
 
 docker exec -it wk_noetic /bin/bash
 
 # 首次进入容器时补齐 mapping.launch 依赖
 apt-get update && apt-get install -y ros-noetic-octomap-server
 
+# 删除原有IP
+sudo ip addr del 192.168.123.164/24 dev enx6c1ff7bccc28
+# 配置新IP
+sudo ip addr add 192.168.123.2/24 dev enx6c1ff7bccc28
+sudo ip link set dev enx6c1ff7bccc28 up
+ip addr show dev enx6c1ff7bccc28
+
 ping 192.168.123.164    # 机器人本体
 ping 192.168.123.120    # 机器人雷达
 ping 192.168.123.161    # 机器人摄像头
 
-cd G1Nav2D
+
+
+
+cd /workspace/WK/G1Nav2D/
 
 export DISPLAY=:0 && \
 export QT_X11_NO_MITSHM=1 && \
@@ -40,6 +94,14 @@ rosrun map_server map_saver map:=/projected_map -f /workspace/WK/maps/map_$(date
 [INFO] [1780302783.591699929]: Done
 
 
+cd /home/unitree/WK/G1Nav2D/src/fastlio2/PCD/
+cp -rf /workspace/WK/G1Nav2D/src/fastlio2/PCD/map.pcd ./
+cp -rf /workspace/WK/G1Nav2D/src/fastlio2/PCD/ground_map.pcd ./
+
+cd /home/unitree/map/
+cp /workspace/WK/maps/map_20260603_084546.pgm /home/unitree/map/mymap.pgm
+cp /workspace/WK/maps/map_20260603_084546.yaml /home/unitree/map/mymap.yaml
+
 
 # 2.启动导航：
 cd /workspace/WK/G1Nav2D/
@@ -49,7 +111,7 @@ source devel/setup.bash
 roslaunch fastlio navigation.launch
 
 # 3.初始重定位（如有需要）：
-rosservice call /slam_reloc "{pcd_path: '/home/water/WK/G1Nav2D/src/fastlio2/PCD/map.pcd', x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}"
+rosservice call /slam_reloc "{pcd_path: '/home/unitree/WK/G1Nav2D/src/fastlio2/PCD/map.pcd', x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}"
 
 # 在 RViz 中确认点云与地图是否配准良好。
 
@@ -59,16 +121,94 @@ rosservice call /slam_reloc "{pcd_path: '/home/water/WK/G1Nav2D/src/fastlio2/PCD
 
 cd /workspace/WK/unitree_sdk2_python/example/g1/high_level
 
+# 手部动作
 python3 g1_action.py enx6c1ff7bccc28
 
+# 走，输入3执行对应的动作
+python3 g1_loco_client_example.py enx6c1ff7bccc28
 
+python3 g1_control_mpc.py enx6c1ff7bccc28
+python3 g1_control_mpc_debug.py enx6c1ff7bccc28
+python3 g1_control_mpc_stable.py enx6c1ff7bccc28
 
-# 报错信息如下：
-bind failed
-[2026-06-02 03:08:28.445] [console] [error] Create detection socket failed.  [device_manager.cpp] [CreateDetectionChannel] [275]
-[2026-06-02 03:08:28.445] [console] [error] Create detection channel failed.  [device_manager.cpp] [CreateChannel] [242]
-[2026-06-02 03:08:28.445] [console] [error] Create channel failed.  [device_manager.cpp] [Init] [169]
-Failed to init livox lidar sdk.
-[ERROR] [1780369708.445674398]: Init lds lidar failed!
-
+python3 multi_nav.py enx6c1ff7bccc28
  
+# 报错信息如下：
+[rviz-5] process has died [pid 147, exit code -6, cmd nice /opt/ros/noetic/lib/rviz/rviz -d /workspace/WK/G1Nav2D/src/fastlio2/rviz/mapping.rviz __name:=rviz __log:=/root/.ros/log/0a9a0b9c-5f20-11f1-8c3a-129cbba61303/rviz-5.log].
+log file: /root/.ros/log/0a9a0b9c-5f20-11f1-8c3a-129cbba61303/rviz-5*.log
+
+# 报错解决：sudols
+
+xhost +SI:localuser:root
+ 
+ 
+ 
+ 
+ root@wair-B660M-D2H-DDR4:/workspace/WK/G1Nav2D# rviz
+Authorization required, but no authorization protocol specified
+qt.qpa.xcb: could not connect to display :0
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: eglfs, linuxfb, minimal, minimalegl, offscreen, vnc, xcb.
+
+Aborted (core dumped)
+root@wair-B660M-D2H-DDR4:/workspace/WK/G1Nav2D# LIBGL_ALWAYS_SOFTWARE=1 QT_X11_NO_MITSHM=1 rviz
+Authorization required, but no authorization protocol specified
+qt.qpa.xcb: could not connect to display :0
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: eglfs, linuxfb, minimal, minimalegl, offscreen, vnc, xcb.
+
+Aborted (core dumped)
+
+
+
+cpp] [HandleDetectionData] [335]
+[ICP] Initial guess: pos=(0 0 0), rpy=( -3.08044 -0.106442   2.09926)
+[ICP] Candidate poses: 49
+[ICP] No valid rough alignment found.
+
+
+[ERROR] [1780479715.632444799]: Aborting because the robot appears to be oscillating over and over. Even after executing all recovery behaviors
+
+
+
+[State: ACTIVE] Target: (-0.09, 0.59) | Current: (-0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.59) | Current: (-0.00, 0.01)
+[State: ACTIVE] Target: (-0.09, 0.59) | Current: (-0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.59) | Current: (-0.00, 0.00)
+[State: ACTIVE] Target: (-0.08, 0.60) | Current: (0.00, -0.01)
+[State: ACTIVE] Target: (-0.08, 0.60) | Current: (0.00, -0.01)
+[State: ACTIVE] Target: (-0.08, 0.60) | Current: (-0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, -0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (-0.00, -0.01)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, 0.01)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, -0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, -0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, -0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (-0.00, -0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (-0.00, -0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (0.00, 0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (-0.00, -0.00)
+[State: ACTIVE] Target: (-0.09, 0.60) | Current: (-0.00, -0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (-0.00, -0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (-0.00, 0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (-0.00, 0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (0.00, -0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (-0.00, -0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (-0.00, -0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (-0.00, 0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (0.00, 0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (0.00, -0.00)
+[State: ACTIVE] Target: (-0.08, 0.61) | Current: (0.00, 0.01)
+
+
+
+
+

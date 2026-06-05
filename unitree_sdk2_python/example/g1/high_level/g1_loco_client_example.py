@@ -90,7 +90,7 @@ if __name__ == "__main__":
         elif test_option.id == 2:
             sport_client.StandUp2Squat()
         elif test_option.id == 3:
-            sport_client.Move(0.3,0,0)
+            sport_client.Move(0.8,0,0)
         elif test_option.id == 4:
             sport_client.Move(0,0.3,0)
         elif test_option.id == 5:
