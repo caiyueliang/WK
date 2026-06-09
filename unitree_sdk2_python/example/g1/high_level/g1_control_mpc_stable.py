@@ -167,9 +167,11 @@ class AdaptiveMPCController:
         q = np.array([-2 * (self.Q_v * v_target + R_weight * v_last_cmd)])
         
         acc_limit = max_acc * self.dt
-        lower_bound = np.array([max(-max_v, v_current - acc_limit)])
-        upper_bound = np.array([min(max_v, v_current + acc_limit)])
+        #lower_bound = np.array([max(-max_v, v_current - acc_limit)])
+        #upper_bound = np.array([min(max_v, v_current + acc_limit)])
         
+        lower_bound = np.array([max(-max_v, v_last_cmd - acc_limit)])
+        upper_bound = np.array([min(max_v, v_last_cmd + acc_limit)])
         A_box = sp.csc_matrix([[1.0]])
         
         prob = osqp.OSQP()

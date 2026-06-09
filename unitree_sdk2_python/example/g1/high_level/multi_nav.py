@@ -83,42 +83,87 @@ class RobotController:
             rospy.logerr(f"复位失败: {e}")
 
     # 【新增】手动原地旋转修正航向函数
-    def rotate_to_yaw(self, target_yaw, listener):
-        rospy.loginfo(f"🔄 开始原地旋转修正航向至: {math.degrees(target_yaw):.1f}°")
-        rate = rospy.Rate(20)
+    # def rotate_to_yaw(self, target_yaw, listener):
+    #     rospy.loginfo(f"🔄 开始原地旋转修正航向至: {math.degrees(target_yaw):.1f}°")
+    #     rate = rospy.Rate(20)
         
+    #     while not rospy.is_shutdown():
+    #         try:
+    #             # 获取当前姿态
+    #             (trans, rot) = listener.lookupTransform("/map", "/base_link", rospy.Time(0))
+    #             current_yaw = euler_from_quaternion(rot)[2]
+                
+    #             # 计算角度差
+    #             yaw_diff = math.atan2(math.sin(target_yaw - current_yaw), math.cos(target_yaw - current_yaw))
+                
+    #             # 如果角度误差小于 0.1 弧度 (约 6度)，认为对齐成功
+    #             if abs(yaw_diff) < 0.1:
+    #                 rospy.loginfo("✅ 航向对齐完成")
+    #                 break
+                
+    #             # 简单 P 控制器计算角速度
+    #             # 最大旋转速度限制在 0.6 rad/s，保证平稳
+    #             cmd_wz = max(-0.6, min(0.6, yaw_diff * 1.5))
+                
+    #             # 发布旋转指令 (vx=0, vy=0, wz=cmd_wz)
+    #             twist_msg = Twist()
+    #             twist_msg.angular.z = cmd_wz
+    #             self.cmd_vel_pub.publish(twist_msg)
+                
+    #         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+    #             pass
+            
+    #         rate.sleep()
+        
+    #     # 停止旋转
+    #     self.cmd_vel_pub.publish(Twist())
+    #     time.sleep(0.1)
+    def rotate_to_yaw(self, target_yaw, listener, timeout=8.0):
+        rospy.loginfo(f"开始原地旋转修正航向至: {math.degrees(target_yaw):.1f}度")
+        rate = rospy.Rate(20)
+        start_time = time.time()
+
         while not rospy.is_shutdown():
+            if time.time() - start_time > timeout:
+                rospy.logwarn("航向修正超时，跳过本次原地旋转")
+                break
+
             try:
-                # 获取当前姿态
-                (trans, rot) = listener.lookupTransform("/map", "/base_link", rospy.Time(0))
+                trans, rot = listener.lookupTransform("/map", "/base_link", rospy.Time(0))
                 current_yaw = euler_from_quaternion(rot)[2]
-                
-                # 计算角度差
-                yaw_diff = math.atan2(math.sin(target_yaw - current_yaw), math.cos(target_yaw - current_yaw))
-                
-                # 如果角度误差小于 0.1 弧度 (约 6度)，认为对齐成功
-                if abs(yaw_diff) < 0.1:
-                    rospy.loginfo("✅ 航向对齐完成")
+
+                yaw_diff = math.atan2(
+                    math.sin(target_yaw - current_yaw),
+                    math.cos(target_yaw - current_yaw),
+                )
+
+                rospy.loginfo_throttle(
+                    0.5,
+                    f"当前yaw: {math.degrees(current_yaw):.1f}度, "
+                    f"目标yaw: {math.degrees(target_yaw):.1f}度, "
+                    f"误差: {math.degrees(yaw_diff):.1f}度",
+                )
+
+                if abs(yaw_diff) < 0.15:
+                    rospy.loginfo("航向对齐完成")
                     break
-                
-                # 简单 P 控制器计算角速度
-                # 最大旋转速度限制在 0.6 rad/s，保证平稳
+
                 cmd_wz = max(-0.6, min(0.6, yaw_diff * 1.5))
-                
-                # 发布旋转指令 (vx=0, vy=0, wz=cmd_wz)
+
+                if abs(cmd_wz) < 0.25:
+                    cmd_wz = 0.25 if cmd_wz > 0 else -0.25
+
                 twist_msg = Twist()
                 twist_msg.angular.z = cmd_wz
                 self.cmd_vel_pub.publish(twist_msg)
-                
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                pass
-            
+
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                rospy.logwarn_throttle(1.0, f"获取TF失败: {e}")
+
             rate.sleep()
-        
-        # 停止旋转
+
         self.cmd_vel_pub.publish(Twist())
         time.sleep(0.1)
-
 
 def set_fast_params():
     #rospy.set_param('/move_base/TebLocalPlannerROS/max_vel_x', 0.8)
@@ -379,11 +424,69 @@ if __name__ == '__main__':
         robot_controller.speak("启动成功")
 
         waypoints = [
-            {"x": -2.87, "y": 2.15, "yaw": 0.00431 ,"action_id":27 ,"say_text": "各位来宾，大家好！欢迎来到武汉人工智能研究院科技展厅。"},
-            {"x": 3.1, "y": 1.1, "yaw": -0.83, "action_id":23,"say_text": "接下来，将为大家介绍我们最核心的成果——“紫东太初”多模态大模型。"}, 
-            {"x": 0, "y": 0, "yaw": -0.83, "action_id":25,"say_text": "以上是展厅的全部介绍，谢谢大家！"}, 
+            {
+                "x": -0.709,
+                "y": 1.85,
+                "yaw": 1.157,
+                "action_id": 25,
+                "say_text": (
+                    "各位来宾，大家好！欢迎来到武汉人工智能研究院科技展厅。"
+                    "首先，我为大家简要介绍研究院和紫东太初大模型的基本情况。"
+                    # "武汉人工智能研究院是由武汉东湖新技术开发区设立的新型研发机构，"
+                    # "依托中国科学院自动化研究所在人工智能领域的深厚积累，以及武汉市优越的区位、科教与产业优势，"
+                    # "聚焦跨模态智能这一国际前沿研究方向。我们的核心目标，是构建全栈国产化的人工智能重大基础设施平台，"
+                    # "推动人工智能成果从实验室走向规模化应用。"
+                    # "研究院秉持“立足武汉、辐射中部、服务全国”的发展方针。"
+                    # "目前，我们正围绕具身智能、科学智能、低空经济等前沿方向，持续开展核心技术攻关，"
+                    # "积极推动“人工智能+”与各行业的深度融合，致力于为湖北加快建成中部地区崛起的重要战略支点提供科技支撑。"
+                    # "研究院的重要支撑——中国科学院自动化研究所，成立于1956年，是我国最早开展类脑智能研究的国立研究机构，"
+                    # "也是国内首个“人工智能学院”的牵头承办单位，在智能科学与技术领域形成了鲜明的学科优势和技术特色。"
+                    # "接下来，让我们一起沿着时间脉络，走进“紫东太初”大模型的创新发展之路。"
+                ),
+            },
+            {
+                "x": -1.71,
+                "y": 3.33,
+                "yaw": 0.109,
+                "action_id":25,
+                "say_text": (
+                    "从初创到引领，“紫东太初”的成长路径上，有着一系列关键的里程碑节点。"
+                    "早在2020年以前，中科院自动化所的紫东太初研发团队就启动了“跨模态通用人工智能开放平台”这一创新任务，"
+                    "并列入中科院“十四五”规划重点方向，从一开始就承载着国家使命。"
+                    "标志着模型在深度推理与工程化落地方面迈入了新阶段。"
+                ),
+            },
+            {
+                "x": 3.82,
+                "y": 7.24,
+                "yaw": -1.145,
+                "action_id": 25,
+                "say_text": (
+                    "为了让模型能力更好地服务千行百业，我们基于“紫东太初”构建了一套完整产品与平台体系。"
+                    "我们的核心平台产品“紫东太初云”，是国内首个全栈国产的万卡智算云平台，"
+                    "能够为企业提供从底层算力到顶层应用的全链路一站式支持。"
+                    # "算力服务平台，实现了“一云多芯”，覆盖全国18座城市，可调度超过10000P的弹性算力，"
+                    # "适配10多种国产芯片，真正做到开放兼容。"
+                    # "大模型训推平台，管理大模型开发的全生命周期，支持主流模型训练与推理。"
+                    # "目前已有超过10万家企业用户使用，开放了超过5000个服务接口，覆盖100多种垂直行业算法。"
+                    # "应用开发平台，提供零代码或低代码开发模式，用户无需编程即可通过“搭积木”的方式快速构建AI应用，"
+                    # "开发周期可缩短60%以上。"
+                    # "该平台已统一接入超过200个主流模型，极大降低了AI应用门槛。"
+                ),
+            },
+            {
+                "x": 6.82,
+                "y": 5.4,
+                "yaw": -2.697,
+                "action_id": 25,
+                "say_text": (
+                    "未来，武汉人工智能研究院将继续秉持“立足武汉、辐射中部、服务全国”的发展方针，"
+                    "打造新一代人工智能技术创新策源地和产业发展高地，与各界伙伴携手，"
+                    "共同推动人工智能与经济社会深度融合，为数字中国建设贡献坚实的科技力量。"
+                    "以上是展厅的全部介绍，谢谢大家！"
+                ),
+            },
         ]
-
         navigate_to_waypoints(waypoints, robot_controller)
 
     except rospy.ROSInterruptException:
