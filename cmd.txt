@@ -70,7 +70,7 @@ ping 192.168.123.161    # 机器人摄像头
 cd /workspace/WK/G1Nav2D/
 
 export DISPLAY=:0 && \
-export QT_X11_NO_MITSHM=1 &&
+export QT_X11_NO_MITSHM=1 && \
 export ROS_MASTER_URI=http://192.168.123.2:11311 && \
 export ROS_IP=192.168.123.2 && \
 unset ROS_HOSTNAME && \
