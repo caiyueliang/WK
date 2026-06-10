@@ -181,6 +181,13 @@ class AdaptiveMPCController:
         return res.x[0]
 
     def control_loop(self, event):
+        # --- 调试打印区 ---
+        if int(rospy.get_time() * 10) % 10 == 0: 
+            state_str = "LOCKED" if not self.can_move else "ACTIVE"
+            print(f"[State: {state_str}] "
+                  f"Target: ({self.target_vx:.2f}, {self.target_wz:.2f}) | "
+                  f"Current: ({self.current_vx:.2f}, {self.current_wz:.2f})")
+                  
         if not self.can_move:
             self.target_vx = 0.0
             self.target_vy = 0.0
