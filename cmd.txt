@@ -124,6 +124,7 @@ rosservice call /slam_reloc "{pcd_path: '/home/unitree/WK/G1Nav2D/src/fastlio2/P
 # 运动控制（G1）
 
 cd /workspace/WK/unitree_sdk2_python/example/g1/high_level
+cd /home/unitree/WK/unitree_sdk2_python/example/g1/high_level
 
 # 手部动作
 python3 g1_action.py enx6c1ff7bccc28

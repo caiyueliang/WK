@@ -23,7 +23,7 @@ localizer:
   refine_iter: 5
   rough_iter: 10
   thresh: 0.15
-  xy_offset: 1.0
-  yaw_offset: 0
-  yaw_resolution: 0.5
+  xy_offset: 5.0
+  yaw_offset: 12
+  yaw_resolution: 0.3
 
