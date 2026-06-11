@@ -122,17 +122,21 @@ class MPCController:
         #self.target_wz = msg.angular.z
 
     def solve_mpc_step(self, v_current, v_target, v_last_cmd, max_v, max_acc):
+        # 将当前实际速度限制在最大允许速度范围内，防止超出物理限制
         v_current = np.clip(v_current, -max_v, max_v)
+        # 将目标速度同样限制在最大允许速度范围内，确保目标值合法
         v_target = np.clip(v_target, -max_v, max_v)
         
         P = sp.csc_matrix([[2 * (self.Q_v + self.R_v)]])
         q = np.array([-2 * (self.Q_v * v_target + self.R_v * v_last_cmd)])
         
         acc_limit = max_acc * self.dt
-        # Blend current feedback with the last command so angular velocity can
-        # ramp up through the robot's start-rotation deadzone.
+        # 融合当前反馈速度与上一周期指令，帮助角速度平滑突破底盘启动死区
+        # 0.3权重给当前反馈值，保留一定的实际状态感知
         v_base = 0.3 * v_current + 0.7 * v_last_cmd
+        # 计算本次指令的最小允许值：不低于最大反向速度，同时不超过加速度限制的最小步长
         lower_bound = np.array([max(-max_v, v_base - acc_limit)])
+        # 计算本次指令的最大允许值：不高于最大正向速度，同时不超过加速度限制的最大步长
         upper_bound = np.array([min(max_v, v_base + acc_limit)])
         
         A_box = sp.csc_matrix([[1.0]])
@@ -189,11 +193,12 @@ class MPCController:
             # 原地转向起步时，如果反馈角速度几乎为 0，给一个最小起转速度
             # 防止被底盘死区卡住，导致 yaw 长时间不变化。
             if (
-                abs(self.target_vx) < 0.05
-                and abs(self.target_wz) > 0.2
-                and abs(self.current_wz) < 0.03
-                and abs(cmd_wz) < 0.3
+                abs(self.target_vx) < 0.05      # 目标线速度接近0，处于原地转向场景
+                and abs(self.target_wz) > 0.2   # 目标角速度足够大，确实需要转向
+                and abs(self.current_wz) < 0.03 # 当前实际角速度接近0，被底盘死区卡住
+                and abs(cmd_wz) < 0.3           # MPC计算出的指令角速度也偏小
             ):
+                # 给一个最小的起转角速度，突破底盘死区，方向和目标角速度一致
                 cmd_wz = 0.3 if self.target_wz > 0 else -0.3
 
             # 发送指令
