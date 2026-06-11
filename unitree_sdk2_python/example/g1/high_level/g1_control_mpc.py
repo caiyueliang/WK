@@ -38,9 +38,9 @@ class MPCController:
         self.dt = 1.0 / self.control_freq
         
         # --- MPC 物理约束 ---
-        self.max_vx = 1.0
-        self.max_vy = 0.0
-        self.max_wz = 0.6
+        self.max_vx = 1.0   # 最大前进线速度，单位：米/秒
+        self.max_vy = 0.0   # 最大横向移动速度，设为0禁止横向移动
+        self.max_wz = 0.6   # 最大绕z轴角速度，单位：弧度/秒
         
         # 加速度设置较大，解决起步慢的问题
         self.max_acc_v = 45.0   
