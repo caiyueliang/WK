@@ -40,7 +40,7 @@ class MPCController:
         # --- MPC 物理约束 ---
         self.max_vx = 1.0
         self.max_vy = 0.0
-        self.max_wz = 0.45
+        self.max_wz = 0.6
         
         # 加速度设置较大，解决起步慢的问题
         self.max_acc_v = 45.0   
@@ -123,13 +123,17 @@ class MPCController:
 
     def solve_mpc_step(self, v_current, v_target, v_last_cmd, max_v, max_acc):
         v_current = np.clip(v_current, -max_v, max_v)
+        v_target = np.clip(v_target, -max_v, max_v)
         
         P = sp.csc_matrix([[2 * (self.Q_v + self.R_v)]])
         q = np.array([-2 * (self.Q_v * v_target + self.R_v * v_last_cmd)])
         
         acc_limit = max_acc * self.dt
-        lower_bound = np.array([max(-max_v, v_current - acc_limit)])
-        upper_bound = np.array([min(max_v, v_current + acc_limit)])
+        # Blend current feedback with the last command so angular velocity can
+        # ramp up through the robot's start-rotation deadzone.
+        v_base = 0.3 * v_current + 0.7 * v_last_cmd
+        lower_bound = np.array([max(-max_v, v_base - acc_limit)])
+        upper_bound = np.array([min(max_v, v_base + acc_limit)])
         
         A_box = sp.csc_matrix([[1.0]])
         
@@ -142,6 +146,13 @@ class MPCController:
         return res.x[0]
 
     def control_loop(self, event):
+        # --- 调试打印区 ---
+        if int(rospy.get_time() * 10) % 10 == 0: 
+            state_str = "LOCKED" if not self.can_move else "ACTIVE"
+            print(f"[State: {state_str}] "
+                  f"Target: ({self.target_vx:.2f}, {self.target_wz:.2f}) | "
+                  f"Current: ({self.current_vx:.2f}, {self.current_wz:.2f})")
+
         # 1. 路径安全检查
         if not self.can_move:
             self.target_vx = 0.0
@@ -174,6 +185,16 @@ class MPCController:
             cmd_vx = self.solve_mpc_step(self.current_vx, self.target_vx, self.last_cmd_vx, self.max_vx, self.max_acc_v)
             cmd_vy = self.solve_mpc_step(self.current_vy, self.target_vy, self.last_cmd_vy, self.max_vy, self.max_acc_v)
             cmd_wz = self.solve_mpc_step(self.current_wz, self.target_wz, self.last_cmd_wz, self.max_wz, self.max_acc_w)
+
+            # 原地转向起步时，如果反馈角速度几乎为 0，给一个最小起转速度
+            # 防止被底盘死区卡住，导致 yaw 长时间不变化。
+            if (
+                abs(self.target_vx) < 0.05
+                and abs(self.target_wz) > 0.2
+                and abs(self.current_wz) < 0.03
+                and abs(cmd_wz) < 0.3
+            ):
+                cmd_wz = 0.3 if self.target_wz > 0 else -0.3
 
             # 发送指令
             if abs(cmd_vx) < 0.01 and abs(cmd_vy) < 0.01 and abs(cmd_wz) < 0.01:
