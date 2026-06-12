@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-import rospy
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Path
 import sys
+
 import numpy as np
 import osqp
+import rospy
 import scipy.sparse as sp
+from geometry_msgs.msg import Twist
 
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize, ChannelSubscriber
 from unitree_sdk2py.g1.loco.g1_loco_client import LocoClient
@@ -33,9 +33,9 @@ class MPCController:
             print(f"[ERROR] 机器人连接失败: {e}")
             sys.exit(-1)
 
-        self.can_move = False
         self.control_freq = 50.0
         self.dt = 1.0 / self.control_freq
+        self.cmd_timeout = 0.5
         
         # --- MPC 物理约束 ---
         self.max_vx = 1.0   # 最大前进线速度，单位：米/秒
@@ -63,6 +63,7 @@ class MPCController:
         self.last_cmd_vx = 0.0
         self.last_cmd_vy = 0.0
         self.last_cmd_wz = 0.0
+        self.last_cmd_time = rospy.Time.now()
 
         # --- 【移植自 V4】到位锁定机制参数 ---
         self.is_stopped = False
@@ -70,7 +71,6 @@ class MPCController:
         
         # 订阅
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_callback)
-        self.path_sub = rospy.Subscriber("/move_base/GlobalPlanner/plan", Path, self.path_callback)
         
         # DDS 订阅
         self.odom_dds_sub = ChannelSubscriber("rt/odommodestate", SportModeState_)
@@ -85,10 +85,9 @@ class MPCController:
         self.current_vy = msg.velocity[1]
         self.current_wz = msg.yaw_speed
 
-    def path_callback(self, msg: Path):
-        self.can_move = len(msg.poses) > 0
-
     def cmd_vel_callback(self, msg: Twist):
+        self.last_cmd_time = rospy.Time.now()
+
         # 【移植自 V4】如果处于锁定状态，忽略微小指令，防止抖动
         if self.is_stopped:
             if abs(msg.linear.x) < 0.05 and abs(msg.linear.y) < 0.05 and abs(msg.angular.z) < 0.1:
@@ -151,14 +150,21 @@ class MPCController:
 
     def control_loop(self, event):
         # --- 调试打印区 ---
-        if int(rospy.get_time() * 10) % 10 == 0: 
-            state_str = "LOCKED" if not self.can_move else "ACTIVE"
+        cmd_is_fresh = (rospy.Time.now() - self.last_cmd_time).to_sec() <= self.cmd_timeout
+        if int(rospy.get_time() * 10) % 10 == 0:
+            if self.is_stopped:
+                state_str = "LOCKED"
+            elif cmd_is_fresh:
+                state_str = "ACTIVE"
+            else:
+                state_str = "IDLE"
             print(f"[State: {state_str}] "
                   f"Target: ({self.target_vx:.2f}, {self.target_wz:.2f}) | "
                   f"Current: ({self.current_vx:.2f}, {self.current_wz:.2f})")
 
-        # 1. 路径安全检查
-        if not self.can_move:
+        # 1. 指令超时保护。新导航脚本不再依赖 move_base 的全局路径，
+        # 因此用 cmd_vel 心跳替代原来的 path 判定。
+        if not cmd_is_fresh:
             self.target_vx = 0.0
             self.target_vy = 0.0
             self.target_wz = 0.0
